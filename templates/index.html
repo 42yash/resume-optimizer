@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Optimizer</title>
+    <script src="https://unpkg.com/htmx.org@1.9.3"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-center mb-8">Resume Optimizer</h1>
+        
+        <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+            <form hx-post="/process" 
+                  hx-encoding="multipart/form-data" 
+                  hx-target="#result"
+                  class="space-y-4">
+                
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-700">
+                        Upload Your Resume (PDF)
+                    </label>
+                    <input type="file" 
+                           name="resume" 
+                           accept=".pdf"
+                           required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-gray-700">
+                        Upload Job Description (PDF)
+                    </label>
+                    <input type="file" 
+                           name="jobDescription" 
+                           accept=".pdf"
+                           required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+
+                <button type="submit" 
+                        class="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition duration-200">
+                    Process Files
+                </button>
+            </form>
+
+            <div id="result" class="mt-4"></div>
+        </div>
+    </div>
+</body>
+</html>
