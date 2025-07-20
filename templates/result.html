@@ -5,26 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Resume Optimization Results</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Add marked.js for Markdown rendering -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
     <div class="container mx-auto px-4 py-8">
         <h1 class="text-3xl font-bold text-center mb-8">Resume Optimization Results</h1>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-xl font-semibold mb-4">Original Resume</h2>
-                <pre class="whitespace-pre-wrap bg-gray-50 p-4 rounded">{{.OriginalResume}}</pre>
-            </div>
-            
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-xl font-semibold mb-4">Job Description</h2>
-                <pre class="whitespace-pre-wrap bg-gray-50 p-4 rounded">{{.JobDescription}}</pre>
-            </div>
-        </div>
-
+    
         <div class="mt-6 bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-semibold mb-4">Optimized Resume</h2>
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">Optimized Resume</h2>
+                <button onclick="copyMarkdown()" class="bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 transition duration-200">
+                    Copy Markdown
+                </button>
+            </div>
             <div id="optimizedResume" class="prose max-w-none bg-gray-50 p-4 rounded"></div>
         </div>
 
@@ -34,8 +28,27 @@
             </a>
         </div>
     </div>
+
     <script>
-        document.getElementById('optimizedResume').innerHTML = marked.parse({{.OptimizedResume}});
+        // Render markdown content on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const markdownContent = `{{.OptimizedResume}}`;
+            document.getElementById('optimizedResume').innerHTML = marked.parse(markdownContent);
+        });
+
+        function copyMarkdown() {
+            const markdownContent = `{{.OptimizedResume}}`;
+            navigator.clipboard.writeText(markdownContent).then(() => {
+                const button = document.querySelector('button');
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        }
     </script>
 </body>
 </html>

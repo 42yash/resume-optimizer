@@ -43,7 +43,7 @@ func PersonalizeResume(ctx context.Context, cv, jobDescription string) (string, 
 		%s
 
 		OUTPUT:
-		Return only the optimized resume in clean markdown format, structured as:
+		Return only the optimized resume in a clean markdown format, structured as:
 		- Header with contact information
 		- Professional summary/objective
 		- Key skills section
@@ -51,7 +51,7 @@ func PersonalizeResume(ctx context.Context, cv, jobDescription string) (string, 
 		- Education
 		- Additional relevant sections (certifications, projects, etc.)
 
-		Focus on ATS compatibility and keyword optimization while maintaining professional formatting.`,
+		Focus on ATS compatibility and keyword optimization while maintaining professional formatting. Also use proper formatting such as bullet points, headings, and sections to enhance readability.`,
 		cv,
 		jobDescription,
 	)
@@ -73,6 +73,8 @@ func PersonalizeResume(ctx context.Context, cv, jobDescription string) (string, 
 	if err != nil {
 		return "", fmt.Errorf("failed to generate content: %v", err)
 	}
+
+	fmt.Print("Generated resume:\n", result.Text())
 
 	return result.Text(), nil
 }

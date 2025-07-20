@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"html/template"
 	"io"
@@ -19,8 +18,7 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
 
 func handleProcess(w http.ResponseWriter, r *http.Request) {
 	// Parse the multipart form with 10 MB max memory
-	err := r.ParseMultipartForm(10 << 20)
-	if err != nil {
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		http.Error(w, "Unable to parse form", http.StatusBadRequest)
 		return
 	}
@@ -47,30 +45,16 @@ func handleProcess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := context.Background()
-
-	// Generate personalized resume
-	optimizedResume, err := PersonalizeResume(ctx, originalResume, jobDescription)
+	// Generate personalized resume in markdown format
+	optimizedResume, err := PersonalizeResume(r.Context(), originalResume, jobDescription)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Prepare data for the template
-	data := struct {
-		OriginalResume  string
-		JobDescription  string
-		OptimizedResume string
-	}{
-		OriginalResume:  template.HTMLEscapeString(originalResume),
-		JobDescription:  template.HTMLEscapeString(jobDescription),
-		OptimizedResume: template.JSEscapeString(optimizedResume),
-	}
-
-	// Render the result template
+	// Render the result template with just the optimized resume
 	tmpl := template.Must(template.ParseFiles(filepath.Join("templates", "result.html")))
-	err = tmpl.Execute(w, data)
-	if err != nil {
+	if err := tmpl.Execute(w, struct{ OptimizedResume string }{optimizedResume}); err != nil {
 		http.Error(w, "Error rendering template", http.StatusInternalServerError)
 		return
 	}
