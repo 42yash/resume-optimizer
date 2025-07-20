@@ -1,4 +1,4 @@
-# Resume Optimizer
+go# Resume Optimizer
 
 A web application built with Go and HTMX that helps optimize resumes based on job descriptions using AI.
 
