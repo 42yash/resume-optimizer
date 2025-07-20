@@ -26,7 +26,7 @@ A web application built with Go and HTMX that helps optimize resumes based on jo
 
 1. Start the server:
    ```
-   go run main.go
+   go run .
    ```
 2. Open your browser and navigate to `http://localhost:3000`
 
