@@ -24,17 +24,34 @@ func PersonalizeResume(ctx context.Context, cv, jobDescription string) (string, 
 
 	// Create the prompt
 	prompt := fmt.Sprintf(`
-		Please personalize this resume for the specific job description provided. 
-		Tailor the content to highlight relevant skills, experience, and achievements that match the job requirements.
-		Keep the same format but emphasize the most relevant aspects.
+		You are a professional resume optimization expert. Your task is to take an existing CV and a job description, then return a highly optimized resume tailored specifically for that position.
 
-		Original CV:
+		INSTRUCTIONS:
+		- Analyze the job description to identify key requirements, skills, and keywords
+		- Restructure and optimize the CV content to align with the job requirements
+		- Use relevant keywords from the job description naturally throughout the resume
+		- Prioritize and highlight the most relevant experiences and skills
+		- Maintain truthfulness - do not fabricate information, only reorganize and emphasize existing content
+		- Return ONLY the optimized resume in proper markdown format
+		- Do not include any explanatory text, comments, or additional content
+
+		INPUT FORMAT:
+		**CV:**
 		%s
 
-		Job Description:
+		**Job Description:**
 		%s
 
-		Please provide the personalized resume in markdown format and do not provide any other extra text as output apart from the final markdown:`,
+		OUTPUT:
+		Return only the optimized resume in clean markdown format, structured as:
+		- Header with contact information
+		- Professional summary/objective
+		- Key skills section
+		- Work experience (most relevant first)
+		- Education
+		- Additional relevant sections (certifications, projects, etc.)
+
+		Focus on ATS compatibility and keyword optimization while maintaining professional formatting.`,
 		cv,
 		jobDescription,
 	)
