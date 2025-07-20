@@ -34,7 +34,7 @@ func PersonalizeResume(ctx context.Context, cv, jobDescription string) (string, 
 		Job Description:
 		%s
 
-		Please provide the personalized resume:`,
+		Please provide the personalized resume in markdown format and do not provide any other extra text as output apart from the final markdown:`,
 		cv,
 		jobDescription,
 	)
