@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"html/template"
 	"io"
 	"net/http"
 	"path/filepath"
+	"time"
 
 	"github.com/ledongthuc/pdf"
 )
@@ -17,6 +19,11 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleProcess(w http.ResponseWriter, r *http.Request) {
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	r = r.WithContext(ctx)
+
 	// Parse the multipart form with 10 MB max memory
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		http.Error(w, "Unable to parse form", http.StatusBadRequest)

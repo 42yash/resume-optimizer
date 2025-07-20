@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,15 +8,72 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Add marked.js for Markdown rendering -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    // ...existing code...
+    <style>
+        /* Markdown content styling */
+        .prose {
+            line-height: 1.6;
+        }
+
+        .prose h1 {
+            font-size: 2em;
+            font-weight: bold;
+            margin: 1em 0;
+        }
+
+        .prose h2 {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin: 1em 0;
+        }
+
+        .prose h3 {
+            font-size: 1.17em;
+            font-weight: bold;
+            margin: 1em 0;
+        }
+
+        .prose ul {
+            list-style-type: disc;
+            margin: 1em 0;
+            padding-left: 2em;
+        }
+
+        .prose ol {
+            list-style-type: decimal;
+            margin: 1em 0;
+            padding-left: 2em;
+        }
+
+        .prose p {
+            margin: 1em 0;
+        }
+
+        .prose pre {
+            background-color: #f3f4f6;
+            padding: 1em;
+            border-radius: 0.375rem;
+        }
+
+        .prose code {
+            font-family: monospace;
+            background-color: #f3f4f6;
+            padding: 0.2em 0.4em;
+            border-radius: 0.25rem;
+        }
+    </style>
 </head>
+
 <body class="bg-gray-100 min-h-screen">
     <div class="container mx-auto px-4 py-8">
         <h1 class="text-3xl font-bold text-center mb-8">Resume Optimization Results</h1>
-    
+
         <div class="mt-6 bg-white rounded-lg shadow-md p-6">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-semibold">Optimized Resume</h2>
-                <button onclick="copyMarkdown()" class="bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 transition duration-200">
+                <button onclick="copyMarkdown()"
+                    class="bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 transition duration-200">
                     Copy Markdown
                 </button>
             </div>
@@ -23,22 +81,43 @@
         </div>
 
         <div class="mt-6 text-center">
-            <a href="/" class="inline-block bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition duration-200">
+            <a href="/"
+                class="inline-block bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition duration-200">
                 Start New Optimization
             </a>
         </div>
     </div>
 
     <script>
-        // Render markdown content on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            const markdownContent = `{{.OptimizedResume}}`;
+        // Replace existing script content with this updated version
+        document.addEventListener('DOMContentLoaded', function () {
+            // Get the markdown content and decode any HTML entities
+            let markdownContent = `{{.OptimizedResume}}`;
+            const decoder = document.createElement('div');
+            decoder.innerHTML = markdownContent;
+            markdownContent = decoder.textContent;
+
+            // Configure marked.js options
+            marked.setOptions({
+                breaks: true,           // Add line breaks
+                gfm: true,             // Enable GitHub Flavored Markdown
+                headerIds: true,        // Enable header IDs
+                mangle: false,          // Disable header ID mangling
+                pedantic: false,        // Be more lenient with markdown spec
+            });
+
+            // Render the markdown
             document.getElementById('optimizedResume').innerHTML = marked.parse(markdownContent);
         });
 
         function copyMarkdown() {
+            // Update copy function to use the raw markdown
             const markdownContent = `{{.OptimizedResume}}`;
-            navigator.clipboard.writeText(markdownContent).then(() => {
+            const decoder = document.createElement('div');
+            decoder.innerHTML = markdownContent;
+            const decodedContent = decoder.textContent;
+
+            navigator.clipboard.writeText(decodedContent).then(() => {
                 const button = document.querySelector('button');
                 const originalText = button.textContent;
                 button.textContent = 'Copied!';
@@ -51,4 +130,5 @@
         }
     </script>
 </body>
+
 </html>
