@@ -115,17 +115,20 @@ func PersonalizeResume(ctx context.Context, cv, jobDescription string) (string, 
 
 	// Create the prompt
 	prompt := fmt.Sprintf(`
-Please personalize this resume for the specific job description provided. 
-Tailor the content to highlight relevant skills, experience, and achievements that match the job requirements.
-Keep the same format but emphasize the most relevant aspects.
+		Please personalize this resume for the specific job description provided. 
+		Tailor the content to highlight relevant skills, experience, and achievements that match the job requirements.
+		Keep the same format but emphasize the most relevant aspects.
 
-Original CV:
-%s
+		Original CV:
+		%s
 
-Job Description:
-%s
+		Job Description:
+		%s
 
-Please provide the personalized resume:`, cv, jobDescription)
+		Please provide the personalized resume:`,
+		cv,
+		jobDescription,
+	)
 
 	thinkingBudget := int32(0)
 
