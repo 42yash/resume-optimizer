@@ -1,11 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"html/template"
-	"fmt"
-	"bytes"
 	"io"
 	"log"
 	"net/http"
@@ -52,63 +51,68 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleProcess(w http.ResponseWriter, r *http.Request) {
-    // Parse the multipart form with 10 MB max memory
-    err := r.ParseMultipartForm(10 << 20)
-    if err != nil {
-        http.Error(w, "Unable to parse form", http.StatusBadRequest)
-        return
-    }
+	// Parse the multipart form with 10 MB max memory
+	err := r.ParseMultipartForm(10 << 20)
+	if err != nil {
+		http.Error(w, "Unable to parse form", http.StatusBadRequest)
+		return
+	}
 
-    // Get the PDF file (removed fileHeader variable)
-    file, _, err := r.FormFile("resume")
-    if err != nil {
-        http.Error(w, "Error retrieving resume file", http.StatusBadRequest)
-        return
-    }
-    defer file.Close()
+	// Get the PDF file (removed fileHeader variable)
+	file, _, err := r.FormFile("resume")
+	if err != nil {
+		http.Error(w, "Error retrieving resume file", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
 
-    // Read the PDF content
-    buf := bytes.NewBuffer(nil)
-    if _, err := io.Copy(buf, file); err != nil {
-        http.Error(w, "Error reading PDF file", http.StatusInternalServerError)
-        return
-    }
+	// Read the PDF content
+	buf := bytes.NewBuffer(nil)
+	if _, err := io.Copy(buf, file); err != nil {
+		http.Error(w, "Error reading PDF file", http.StatusInternalServerError)
+		return
+	}
 
-    // Parse PDF content
-    reader, err := pdf.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
-    if err != nil {
-        http.Error(w, "Error parsing PDF", http.StatusInternalServerError)
-        return
-    }
+	// Parse PDF content
+	reader, err := pdf.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	if err != nil {
+		http.Error(w, "Error parsing PDF", http.StatusInternalServerError)
+		return
+	}
 
-    // Extract text from PDF
-    text, err := reader.GetPlainText()
-    if err != nil {
-        http.Error(w, "Error extracting text from PDF", http.StatusInternalServerError)
-        return
-    }
+	// Extract text from PDF
+	cvReader, err := reader.GetPlainText()
+	if err != nil {
+		http.Error(w, "Error extracting text from PDF", http.StatusInternalServerError)
+		return
+	}
 
-    // Get job description
-    jobDescription := r.FormValue("jobDescription")
-    if jobDescription == "" {
-        http.Error(w, "Job description is required", http.StatusBadRequest)
-        return
-    }
+	// Convert io.Reader to string
+	cvBytes, err := io.ReadAll(cvReader)
+	if err != nil {
+		http.Error(w, "Error reading PDF text content", http.StatusInternalServerError)
+		return
+	}
+	cvtext := string(cvBytes)
 
-    // Print parsed content to console
-    fmt.Println("=== PDF Content ===")
-    fmt.Println(text)
-    fmt.Println("\n=== Job Description ===")
-    fmt.Println(jobDescription)
+	// Get job description
+	jdtext := r.FormValue("jobDescription")
+	if jdtext == "" {
+		http.Error(w, "Job description is required", http.StatusBadRequest)
+		return
+	}
+
+	// Print parsed content to console
+	fmt.Println("=== PDF Content ===")
+	fmt.Println(cvtext)
+	fmt.Println("\n=== Job Description ===")
+	fmt.Println(jdtext)
 
 	// TODO: Add AI processing logic here
 	// Sample placeholder for processing logic
 	ctx := context.Background()
 
 	// Generate personalized resume
-
-	jdtext := `Job Title: Senior Software Engineer`
-	cvtext := `John Doe`
 
 	personalizedResume, err := PersonalizeResume(ctx, cvtext, jdtext)
 	if err != nil {
