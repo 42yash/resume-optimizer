@@ -6,12 +6,6 @@ import (
 	"os/exec"
 )
 
-type Repo struct {
-	Name string `json:"name"`
-	URL  string `json:"html_url"`
-}
-
-
 
 func createProjectSummary(repoURLs []string) ([]string, error) {
     var summaries []string

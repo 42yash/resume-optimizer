@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net/http"
 
@@ -11,13 +10,6 @@ import (
 )
 
 func main() {
-	// Check client creation
-	ctx := context.Background()
-	_, err := createGeminiClient(ctx)
-	if err != nil {
-		log.Fatalf("Failed to create Gemini client: %v", err)
-	}
-
 	r := chi.NewRouter()
 
 	// Middleware

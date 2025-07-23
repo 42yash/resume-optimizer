@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -47,7 +48,7 @@ func summarizeRepoUsingAI(ctx context.Context, content string) (string, error) {
 
 func GenerateFromAI(ctx context.Context, prompt string) (string, error) {
     client, err := createGeminiClient(ctx)
-	if err == nil {
+	if err != nil {
 		return "", fmt.Errorf("failed to create Gemini client")
 	} 
 
@@ -101,6 +102,8 @@ func createGeminiClient(ctx context.Context) (*genai.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create client: %v", err)
 	}
+
+	log.Println("Created Gemini client successfully\n")
 
 	return client, nil
 }
