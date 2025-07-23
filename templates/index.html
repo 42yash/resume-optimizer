@@ -35,28 +35,35 @@
                     class="w-full border border-gray-300 rounded px-3 py-2 resize-none"></textarea>
             </div>
 
-            <!-- GitHub Username + Fetch -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                    GitHub Username
-                </label>
-                <div class="flex space-x-3">
-                    <input type="text" name="githubUsername" id="githubUsername" placeholder="e.g., johndoe"
-                        class="flex-1 border border-gray-300 rounded px-3 py-2" />
-                    <button type="button"
-                        class="bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600 transition"
-                        hx-post="/repos" hx-include="#githubUsername" hx-target="#github-repos" hx-swap="innerHTML">
-                        Fetch
-                    </button>
-                </div>
-                <div id="github-repos" class="mt-2 text-sm text-gray-700 space-y-2"></div>
-            </div>
-
-            <!-- Submit -->
-            <button type="submit"
-                class="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition mt-4">
-                Optimize Resume
+<!-- GitHub Username + Fetch -->
+    <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+            GitHub Username
+        </label>
+        <div class="flex space-x-3">
+            <input type="text" name="githubUsername" id="githubUsername" placeholder="e.g., johndoe"
+                   class="flex-1 border border-gray-300 rounded px-3 py-2" />
+            <button type="button"
+                    class="bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600 transition"
+                    hx-post="/repos"
+                    hx-include="#githubUsername"
+                    hx-target="#github-repos"
+                    hx-swap="innerHTML">
+                Fetch
             </button>
+        </div>
+
+        <!-- 👇 This will receive the dynamic checkboxes -->
+        <div id="github-repos" class="mt-2 text-sm text-gray-700 space-y-2">
+            <!-- htmx injects selected checkboxes here -->
+        </div>
+    </div>
+
+    <!-- Submit -->
+    <button type="submit"
+            class="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition mt-4">
+        Optimize Resume
+    </button>
 
         </form>
     </div>

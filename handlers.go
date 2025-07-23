@@ -61,8 +61,30 @@ func handleProcess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	selectedRepos := r.Form["repos"]
+	//  Convert repo name to url
+	if len(selectedRepos) == 0 {
+		http.Error(w, "At least one repository must be selected", http.StatusBadRequest)
+		return
+	}	
+
+	username := r.FormValue("githubUsername")
+
+	for i, repoName := range selectedRepos {
+		repoURL := fmt.Sprintf("https://github.com/" + username + "/" + repoName)
+		selectedRepos[i] = repoURL
+	}
+
+	projectSummaries, err := createProjectSummary(selectedRepos)
+	if err != nil {
+		http.Error(w, "Error creating project summaries: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Println("Selected repositories:", selectedRepos)
+
 	// Generate personalized resume in markdown format
-	optimizedResume, err := PersonalizeResume(r.Context(), originalResume, jobDescription)
+	optimizedResume, err := PersonalizeResume(r.Context(), originalResume, jobDescription, projectSummaries)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

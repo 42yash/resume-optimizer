@@ -10,7 +10,7 @@ import (
 )
 
 // PersonalizeResume takes a CV and job description and returns a personalized resume
-func PersonalizeResume(ctx context.Context, cv, jobDescription string) (string, error) {
+func PersonalizeResume(ctx context.Context, cv, jobDescription string, projectSummaries []string) (string, error) {
 	// Get API key from environment
 	apiKey := os.Getenv("GEMINI_API_KEY")
 	if apiKey == "" {
@@ -28,7 +28,9 @@ func PersonalizeResume(ctx context.Context, cv, jobDescription string) (string, 
 		return "", fmt.Errorf("failed to read prompt template: %v", err)
 	}
 
-	prompt := fmt.Sprintf(string(promptTemplate), cv, jobDescription)
+	prompt := fmt.Sprintf(string(promptTemplate), cv, jobDescription, strings.Join(projectSummaries, "\n"))
+
+	fmt.Print("Prompt:\n", prompt, "\n\n")
 
 	thinkingBudget := int32(0)
 
@@ -48,8 +50,6 @@ func PersonalizeResume(ctx context.Context, cv, jobDescription string) (string, 
 	if err != nil {
 		return "", fmt.Errorf("failed to generate content: %v", err)
 	}
-
-	fmt.Print(result.Text())
 
 	// Extract content using the proper field access
 	var fullContent strings.Builder
