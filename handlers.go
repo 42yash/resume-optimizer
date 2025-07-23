@@ -3,9 +3,11 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
+	"log"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -13,6 +15,7 @@ import (
 
 	"github.com/ledongthuc/pdf"
 )
+
 
 func handleHome(w http.ResponseWriter, r *http.Request) {
 	tmpl := template.Must(template.ParseFiles(filepath.Join("templates", "index.html")))
@@ -94,6 +97,80 @@ func handleProcess(w http.ResponseWriter, r *http.Request) {
 	tmpl := template.Must(template.ParseFiles(filepath.Join("templates", "resume.html")))
 	if err := tmpl.Execute(w, struct{ OptimizedResume string }{optimizedResume})   ; err != nil {
 		http.Error(w, "Error rendering template", http.StatusInternalServerError)
+		return
+	}
+}
+
+func handleRepos(w http.ResponseWriter, r *http.Request) {
+	var tmpl = `
+		{{range .}}
+			<div>
+			<label class="inline-flex items-center">
+				<input type="checkbox" name="repos" value="{{.Name}}" class="mr-2">
+				{{.Name}}
+			</label>
+			</div>
+		{{else}}
+			<p>No repositories found.</p>
+		{{end}}
+		`
+
+	username := r.FormValue("githubUsername")
+	log.Printf("Fetching repos for user: %s", username)
+	if username == "" {
+		http.Error(w, "Username required", http.StatusBadRequest)
+		return
+	}
+
+	apiURL := fmt.Sprintf("https://api.github.com/users/%s/repos", username)
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	if err != nil {
+		http.Error(w, "Failed to create request", http.StatusInternalServerError)
+		return
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		http.Error(w, "Could not fetch GitHub repos", http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		http.Error(w, "GitHub API error", resp.StatusCode)
+		return
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		http.Error(w, "Failed to read response", http.StatusInternalServerError)
+		return
+	}
+
+
+	var repos []Repo
+	if err := json.Unmarshal(body, &repos); err != nil {
+		http.Error(w, "Failed to decode repos", http.StatusInternalServerError)
+		return
+	}
+
+	// If no repos found, return empty list
+	if len(repos) == 0 {
+		log.Printf("No repos found for user %s", username)
+		repos = []Repo{}
+	}
+
+	// Convert repo names to URLs
+	for i := range repos {
+		repos[i].URL = fmt.Sprintf("https://github.com" + username + "/" + repos[i].Name)
+	}
+
+	log.Printf("Found %d repos for user %s", len(repos), username)
+
+	t := template.Must(template.New("repos").Parse(tmpl))
+	if err := t.Execute(w, repos); err != nil {
+		http.Error(w, "Template execution failed", http.StatusInternalServerError)
 		return
 	}
 }

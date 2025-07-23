@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 
@@ -10,6 +11,13 @@ import (
 )
 
 func main() {
+	// Check client creation
+	ctx := context.Background()
+	_, err := createGeminiClient(ctx)
+	if err != nil {
+		log.Fatalf("Failed to create Gemini client: %v", err)
+	}
+
 	r := chi.NewRouter()
 
 	// Middleware
@@ -35,4 +43,6 @@ func main() {
 
 	log.Println("Server starting on http://localhost:3000...")
 	http.ListenAndServe(":3000", r)
+
+
 }
