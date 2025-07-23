@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Optimized Resume</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen">
+    <div class="max-w-4xl mx-auto px-6 py-10">
+        <h1 class="text-4xl font-bold text-center mb-8 text-gray-800">Optimized Resume</h1>
+
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <div class="flex justify-between items-center">
+                <h2 class="text-2xl font-semibold">Markdown Output</h2>
+                <button onclick="copyMarkdown()"
+                    class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 transition">
+                    Copy Markdown
+                </button>
+            </div>
+            <div id="optimizedResume" class="prose max-w-none mt-6 bg-gray-50 p-4 rounded whitespace-pre-wrap"></div>
+        </div>
+
+        <div class="text-center mt-6">
+            <a href="/" class="inline-block bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition">
+                Start New
+            </a>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const markdownContent = `{{.OptimizedResume}}`;
+            const decoder = document.createElement('div');
+            decoder.innerHTML = markdownContent;
+            const decoded = decoder.textContent;
+            document.getElementById('optimizedResume').innerHTML = marked.parse(decoded);
+        });
+
+        function copyMarkdown() {
+            const decoder = document.createElement('div');
+            decoder.innerHTML = `{{.OptimizedResume}}`;
+            const text = decoder.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Markdown copied to clipboard!');
+            });
+        }
+    </script>
+</body>
+
+</html>

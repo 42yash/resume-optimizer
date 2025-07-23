@@ -30,6 +30,8 @@ func main() {
 	// Routes
 	r.Get("/", handleHome)
 	r.Post("/process", handleProcess)
+	r.Post("/verify-linkedin", handleLinkedInVerify)
+	r.Post("/repos", handleRepos)
 
 	log.Println("Server starting on http://localhost:3000...")
 	http.ListenAndServe(":3000", r)

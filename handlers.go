@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ledongthuc/pdf"
@@ -16,6 +17,14 @@ import (
 func handleHome(w http.ResponseWriter, r *http.Request) {
 	tmpl := template.Must(template.ParseFiles(filepath.Join("templates", "index.html")))
 	tmpl.Execute(w, nil)
+}
+
+func handleLinkedInVerify(w http.ResponseWriter, r *http.Request) {
+	url := r.FormValue("linkedinUrl")
+	if url == "" || !strings.Contains(url, "linkedin.com/in/") {
+		fmt.Fprintf(w, "LinkedIn profile is invalid!")
+	}
+	fmt.Fprintf(w, "✅ LinkedIn profile appears valid!")
 }
 
 func handleProcess(w http.ResponseWriter, r *http.Request) {
@@ -60,8 +69,8 @@ func handleProcess(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Render the result template with just the optimized resume
-	tmpl := template.Must(template.ParseFiles(filepath.Join("templates", "result.html")))
-	if err := tmpl.Execute(w, struct{ OptimizedResume string }{optimizedResume}); err != nil {
+	tmpl := template.Must(template.ParseFiles(filepath.Join("templates", "resume.html")))
+	if err := tmpl.Execute(w, struct{ OptimizedResume string }{optimizedResume})   ; err != nil {
 		http.Error(w, "Error rendering template", http.StatusInternalServerError)
 		return
 	}
