@@ -102,7 +102,7 @@ func handleRepos(w http.ResponseWriter, r *http.Request) {
     }
 
     apiURL := fmt.Sprintf("https://api.github.com/users/%s/repos", username)
-    ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+    ctx, cancel := context.WithTimeout(r.Context(), 200*time.Second)
     defer cancel()
     req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
     if err != nil {
