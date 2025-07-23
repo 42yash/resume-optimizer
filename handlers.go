@@ -32,7 +32,7 @@ func handleLinkedInVerify(w http.ResponseWriter, r *http.Request) {
 
 func handleProcess(w http.ResponseWriter, r *http.Request) {
 
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 200*time.Second)
 	defer cancel()
 	r = r.WithContext(ctx)
 
