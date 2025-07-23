@@ -1,0 +1,19 @@
+services:
+  resume-optimizer:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      # Optional: Mount static files for development
+      - ./static:/app/static:ro
+    networks:
+      - resume-net
+
+networks:
+  resume-net:
+    driver: bridge
