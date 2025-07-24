@@ -48,8 +48,10 @@ Directory Structure
 templates/
   index.html
   resume.html
+.gitignore
 ai.go
-ecommerce-store.txt
+docker-compose.yml
+Dockerfile
 github.go
 go.mod
 handlers.go
@@ -62,6 +64,137 @@ templates.go
 ================================================================
 Files
 ================================================================
+
+================
+File: .gitignore
+================
+.env
+repomix-output.txt
+
+================
+File: docker-compose.yml
+================
+services:
+  resume-optimizer:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      # Optional: Mount static files for development
+      - ./static:/app/static:ro
+    networks:
+      - resume-net
+
+networks:
+  resume-net:
+    driver: bridge
+
+================
+File: Dockerfile
+================
+# Multi-stage build for smaller final image
+FROM node:18-alpine AS repomix-installer
+
+# Install repomix globally
+RUN npm install -g repomix
+
+# Main application stage
+FROM golang:1.24-alpine AS builder
+
+# Install system dependencies
+RUN apk add --no-cache git ca-certificates tzdata
+
+# Set working directory
+WORKDIR /app
+
+# Copy go mod files
+COPY go.mod go.sum ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+
+# Final stage - minimal runtime image
+FROM alpine:latest
+
+# Install runtime dependencies
+RUN apk --no-cache add ca-certificates nodejs npm git
+
+# Install repomix in the final image
+RUN npm install -g repomix
+
+# Create non-root user for security
+RUN adduser -D -s /bin/sh appuser
+
+# Set working directory
+WORKDIR /app
+
+# Copy the binary from builder stage
+COPY --from=builder /app/main .
+
+# Copy templates and other necessary files
+COPY --from=builder /app/templates ./templates/
+COPY --from=builder /app/prompt.md ./
+COPY --from=builder /app/repo-prompt.md ./
+
+# Create static directory if it doesn't exist
+RUN mkdir -p static
+
+# Change ownership to non-root user
+RUN chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+
+# Run the application
+CMD ["./main"]
+
+================
+File: repo-prompt.md
+================
+You are an expert technical analyst specializing in software project evaluation and documentation. Your task is to analyze a complete repository codebase and generate a comprehensive project summary suitable for a CV/resume.
+
+**Instructions:**
+Analyze the provided repository content (generated via repomix) and create a detailed technical summary that highlights:
+
+1. **Project Overview**: Brief description of what the project does and its main purpose
+2. **Technical Stack**: Technologies, frameworks, languages, and tools used
+3. **Architecture & Design**: System architecture, design patterns, and structural decisions
+4. **Key Features**: Main functionalities and capabilities implemented
+5. **Technical Complexity**: Challenging aspects, algorithms, or sophisticated implementations
+6. **Development Practices**: Code organization, testing approaches, documentation quality
+7. **Scale & Impact**: Project size, performance considerations, and potential business impact
+
+**Output Requirements:**
+- Write in a professional, concise manner suitable for CV inclusion
+- Focus on technical achievements and skills demonstrated
+- Quantify complexity where possible (e.g., number of components, lines of code, features)
+- Highlight innovative solutions or best practices implemented
+- Use action-oriented language that demonstrates your contribution
+- Keep the summary around 500 words
+- Format as a single markdown code block
+
+**Repository Content:**
+[Paste your repomix-generated repository content here]
+
+Generate only the project summary in the specified format.
 
 ================
 File: templates.go
@@ -125,27 +258,97 @@ File: templates/resume.html
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .glass-effect { backdrop-filter: blur(20px); background: rgba(255, 255, 255, 0.95); }
-        .animate-fade-in { animation: fadeIn 0.8s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .copy-success { @apply bg-green-500 transform scale-110; }
-        .prose h1 { @apply text-3xl font-bold text-gray-800 mb-4; }
-        .prose h2 { @apply text-2xl font-semibold text-gray-700 mb-3 mt-6; }
-        .prose h3 { @apply text-xl font-medium text-gray-700 mb-2 mt-4; }
-        .prose p { @apply text-gray-600 mb-3 leading-relaxed; }
-        .prose ul { @apply list-disc list-inside text-gray-600 mb-4; }
-        .prose li { @apply mb-1; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .glass-effect {
+            backdrop-filter: blur(20px);
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        z .copy-success {
+            @apply bg-green-500 transform scale-110;
+        }
+
+        .prose h1 {
+            @apply text-3xl font-bold text-gray-800 mb-6 mt-0;
+        }
+
+        .prose h2 {
+            @apply text-2xl font-semibold text-gray-700 mb-4 mt-8;
+        }
+
+        .prose h3 {
+            @apply text-xl font-medium text-gray-700 mb-3 mt-6;
+        }
+
+        .prose p {
+            @apply text-gray-600 mb-4 leading-relaxed;
+        }
+
+        .prose ul {
+            @apply list-disc list-inside text-gray-600 mb-6 space-y-2;
+        }
+
+        .prose li {
+            @apply mb-2;
+        }
+
+        .prose strong {
+            @apply font-semibold text-gray-800;
+        }
+
+        .prose *+* {
+            @apply mt-4;
+        }
+
+        .prose>* {
+            @apply mb-4;
+        }
+
+        .prose>*:last-child {
+            @apply mb-0;
+        }
+
+        .prose hr {
+            @apply my-8 border-gray-300;
+        }
+
+        .prose blockquote {
+            @apply border-l-4 border-indigo-500 pl-4 italic my-6;
+        }
     </style>
 </head>
 
 <body class="gradient-bg min-h-screen">
-    <div class="relative z-10 max-w-5xl mx-auto px-6 py-12">
+    <div class="relative z-10 max-w-7xl mx-auto px-6 py-12">
         <!-- Header -->
         <div class="text-center mb-8 animate-fade-in">
             <div class="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-full mb-6">
@@ -186,21 +389,22 @@ File: templates/resume.html
 
             <!-- Content Area -->
             <div class="p-8">
-                <!-- Rendered View -->
-                <div id="rendered-view" class="prose max-w-none bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <div id="rendered-view"
+                    class="prose prose-lg max-w-none bg-white p-8 rounded-xl border border-gray-200 shadow-sm">
                     <!-- Rendered markdown will be inserted here -->
                 </div>
 
                 <!-- Raw Markdown View (Hidden by default) -->
                 <div id="raw-view" class="hidden">
-                    <pre class="bg-gray-900 text-gray-100 p-6 rounded-xl overflow-x-auto"><code id="markdown-code" class="language-markdown"><!-- Raw markdown will be inserted here --></code></pre>
+                    <pre
+                        class="bg-gray-900 text-gray-100 p-6 rounded-xl overflow-x-auto"><code id="markdown-code" class="language-markdown"><!-- Raw markdown will be inserted here --></code></pre>
                 </div>
             </div>
         </div>
 
         <!-- Action Buttons -->
         <div class="text-center mt-8 space-x-4 animate-fade-in">
-            <a href="/" 
+            <a href="/"
                 class="inline-flex items-center bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-6 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 transform hover:scale-105 font-semibold shadow-lg">
                 <i class="fas fa-plus mr-2"></i>
                 Optimize Another Resume
@@ -214,7 +418,8 @@ File: templates/resume.html
     </div>
 
     <!-- Success Toast -->
-    <div id="toast" class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 z-50">
+    <div id="toast"
+        class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 z-50">
         <i class="fas fa-check mr-2"></i>
         <span id="toast-message">Copied to clipboard!</span>
     </div>
@@ -228,11 +433,11 @@ File: templates/resume.html
             const decoder = document.createElement('div');
             decoder.innerHTML = markdownContent;
             rawMarkdown = decoder.textContent;
-            
+
             // Render the markdown
             document.getElementById('rendered-view').innerHTML = marked.parse(rawMarkdown);
             document.getElementById('markdown-code').textContent = rawMarkdown;
-            
+
             // Highlight code blocks
             Prism.highlightAll();
         });
@@ -241,7 +446,7 @@ File: templates/resume.html
             const renderedView = document.getElementById('rendered-view');
             const rawView = document.getElementById('raw-view');
             const viewText = document.getElementById('view-text');
-            
+
             if (isRawView) {
                 renderedView.classList.remove('hidden');
                 rawView.classList.add('hidden');
@@ -259,12 +464,12 @@ File: templates/resume.html
         function copyMarkdown() {
             navigator.clipboard.writeText(rawMarkdown).then(() => {
                 showToast('Copied to clipboard!');
-                
+
                 // Visual feedback on copy button
                 const copyBtn = document.getElementById('copy-btn');
                 copyBtn.classList.add('copy-success');
                 copyBtn.innerHTML = '<i class="fas fa-check mr-2"></i>Copied!';
-                
+
                 setTimeout(() => {
                     copyBtn.classList.remove('copy-success');
                     copyBtn.innerHTML = '<i class="fas fa-copy mr-2"></i>Copy Markdown';
@@ -289,7 +494,7 @@ File: templates/resume.html
             const toast = document.getElementById('toast');
             const toastMessage = document.getElementById('toast-message');
             toastMessage.textContent = message;
-            
+
             toast.classList.remove('translate-x-full');
             setTimeout(() => {
                 toast.classList.add('translate-x-full');
@@ -299,351 +504,6 @@ File: templates/resume.html
 </body>
 
 </html>
-
-================
-File: ecommerce-store.txt
-================
-đŚ Repomix v1.2.0
-â  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ ¸ Downloading repository archive...
-[2K[1A[2K[Gâ ź Downloading repository archive...
-[2K[1A[2K[Gâ ´ Downloading repository archive...
-[2K[1A[2K[Gâ Ś Downloading repository archive...
-[2K[1A[2K[Gâ § Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ  Downloading repository archive...
-[2K[1A[2K[Gâ š Downloading repository archive...
-[2K[1A[2K[Gâ Archive download failed, trying git clone...
-Clone repository: https://github.com/github.com/ecommerce-store.git to temporary directory. path: /tmp/repomix-xsFz0e
-â  Cloning repository...
-[2K[1A[2K[Gâ š Cloning repository...
-[2K[1A[2K[Gâ ¸ Cloning repository...
-[2K[1A[2K[Gâ ź Cloning repository...
-[2K[1A[2K[Gâ ´ Cloning repository...
-[2K[1A[2K[Gâ Ś Cloning repository...
-[2K[1A[2K[Gâ § Cloning repository...
-[2K[1A[2K[Gâ  Cloning repository...
-[2K[1A[2K[Gâ  Cloning repository...
-[2K[1A[2K[Gâ  Cloning repository...
-[2K[1A[2K[Gâ  Cloning repository...
-[2K[1A[2K[Gâ š Cloning repository...
-[2K[1A[2K[Gâ Error during repository cloning. cleanup...
-Need help?
-â˘ File an issue on GitHub: https://github.com/yamadashy/repomix/issues
-â˘ Join our Discord community: https://discord.gg/wNYzTwZFku
-
-================
-File: repo-prompt.md
-================
-You are an expert technical analyst specializing in software project evaluation and documentation. Your task is to analyze a complete repository codebase and generate a comprehensive project summary suitable for a CV/resume.
-
-**Instructions:**
-Analyze the provided repository content (generated via repomix) and create a detailed technical summary that highlights:
-
-1. **Project Overview**: Brief description of what the project does and its main purpose
-2. **Technical Stack**: Technologies, frameworks, languages, and tools used
-3. **Architecture & Design**: System architecture, design patterns, and structural decisions
-4. **Key Features**: Main functionalities and capabilities implemented
-5. **Technical Complexity**: Challenging aspects, algorithms, or sophisticated implementations
-6. **Development Practices**: Code organization, testing approaches, documentation quality
-7. **Scale & Impact**: Project size, performance considerations, and potential business impact
-
-**Output Requirements:**
-- Write in a professional, concise manner suitable for CV inclusion
-- Focus on technical achievements and skills demonstrated
-- Quantify complexity where possible (e.g., number of components, lines of code, features)
-- Highlight innovative solutions or best practices implemented
-- Use action-oriented language that demonstrates your contribution
-- Keep the summary around 500 words
-- Format as a single markdown code block
-
-**Repository Content:**
-[Paste your repomix-generated repository content here]
-
-Generate only the project summary in the specified format.
 
 ================
 File: prompt.md
@@ -939,14 +799,47 @@ File: templates/index.html
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .glass-effect { backdrop-filter: blur(20px); background: rgba(255, 255, 255, 0.95); }
-        .animate-float { animation: float 6s ease-in-out infinite; }
-        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-20px); } }
-        .custom-checkbox { @apply relative inline-flex items-center p-3 rounded-lg border-2 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all duration-200 cursor-pointer; }
-        .custom-checkbox input:checked + .checkmark { @apply border-indigo-500 bg-indigo-500; }
-        .custom-checkbox .checkmark { @apply w-5 h-5 border-2 border-gray-300 rounded mr-3 flex items-center justify-center transition-all duration-200; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .glass-effect {
+            backdrop-filter: blur(20px);
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-20px);
+            }
+        }
+
+        .custom-checkbox {
+            @apply relative inline-flex items-center p-3 rounded-lg border-2 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all duration-200 cursor-pointer;
+        }
+
+        .custom-checkbox input:checked+.checkmark {
+            @apply border-indigo-500 bg-indigo-500;
+        }
+
+        .custom-checkbox .checkmark {
+            @apply w-5 h-5 border-2 border-gray-300 rounded mr-3 flex items-center justify-center transition-all duration-200;
+        }
     </style>
 </head>
 
@@ -954,8 +847,10 @@ File: templates/index.html
     <!-- Floating Elements -->
     <div class="fixed inset-0 overflow-hidden pointer-events-none">
         <div class="absolute top-10 left-10 w-20 h-20 bg-white/10 rounded-full animate-float"></div>
-        <div class="absolute top-32 right-20 w-16 h-16 bg-white/10 rounded-full animate-float" style="animation-delay: -2s;"></div>
-        <div class="absolute bottom-20 left-20 w-24 h-24 bg-white/10 rounded-full animate-float" style="animation-delay: -4s;"></div>
+        <div class="absolute top-32 right-20 w-16 h-16 bg-white/10 rounded-full animate-float"
+            style="animation-delay: -2s;"></div>
+        <div class="absolute bottom-20 left-20 w-24 h-24 bg-white/10 rounded-full animate-float"
+            style="animation-delay: -4s;"></div>
     </div>
 
     <div class="relative z-10 max-w-3xl mx-auto px-6 py-12">
@@ -969,8 +864,9 @@ File: templates/index.html
         </div>
 
         <!-- Main Form -->
-        <form action="/process" method="POST" enctype="multipart/form-data" class="glass-effect rounded-2xl shadow-2xl p-8 space-y-8">
-            
+        <form action="/process" method="POST" enctype="multipart/form-data"
+            class="glass-effect rounded-2xl shadow-2xl p-8 space-y-8">
+
             <!-- Resume Upload -->
             <div class="space-y-3">
                 <label class="flex items-center text-lg font-semibold text-gray-700 mb-3">
@@ -979,9 +875,11 @@ File: templates/index.html
                 </label>
                 <div class="relative">
                     <input type="file" name="resume" accept=".pdf" id="resume-upload" class="hidden" />
-                    <label for="resume-upload" class="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl hover:border-indigo-400 hover:bg-indigo-50 transition-all duration-200 cursor-pointer group">
+                    <label for="resume-upload"
+                        class="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl hover:border-indigo-400 hover:bg-indigo-50 transition-all duration-200 cursor-pointer group">
                         <div class="text-center">
-                            <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 group-hover:text-indigo-500 mb-2"></i>
+                            <i
+                                class="fas fa-cloud-upload-alt text-4xl text-gray-400 group-hover:text-indigo-500 mb-2"></i>
                             <p class="text-gray-600 group-hover:text-indigo-600">Click to upload your PDF resume</p>
                             <p class="text-sm text-gray-400">or drag and drop</p>
                         </div>
@@ -997,8 +895,7 @@ File: templates/index.html
                     Job Description <span class="text-red-500">*</span>
                 </label>
                 <div class="relative">
-                    <textarea name="jobDescription" required rows="6" 
-                        placeholder="Paste the job description here..."
+                    <textarea name="jobDescription" required rows="6" placeholder="Paste the job description here..."
                         class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 resize-none text-gray-700"></textarea>
                     <div class="absolute bottom-3 right-3 text-xs text-gray-400">
                         <i class="fas fa-info-circle mr-1"></i>Required
@@ -1014,17 +911,14 @@ File: templates/index.html
                 </label>
                 <div class="flex space-x-3">
                     <div class="flex-1 relative">
-                        <input type="text" name="githubUsername" id="githubUsername" 
+                        <input type="text" name="githubUsername" id="githubUsername"
                             placeholder="Enter GitHub username..."
                             class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 text-gray-700" />
                         <i class="fas fa-user absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                     </div>
                     <button type="button"
                         class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-3 rounded-xl hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 font-semibold shadow-lg"
-                        hx-post="/repos"
-                        hx-include="#githubUsername"
-                        hx-target="#github-repos"
-                        hx-swap="innerHTML">
+                        hx-post="/repos" hx-include="#githubUsername" hx-target="#github-repos" hx-swap="innerHTML">
                         <i class="fas fa-search mr-2"></i>Fetch
                     </button>
                 </div>
@@ -1045,43 +939,156 @@ File: templates/index.html
         </form>
     </div>
 
-<script>
-    let fetchButton = null;
+    <script>
+        let fetchButton = null;
 
-    // File upload preview
-    document.getElementById('resume-upload').addEventListener('change', function(e) {
-        const fileName = e.target.files[0]?.name;
-        const fileNameDiv = document.getElementById('file-name');
-        if (fileName) {
-            fileNameDiv.textContent = `Selected: ${fileName}`;
-            fileNameDiv.classList.remove('hidden');
-        } else {
-            fileNameDiv.classList.add('hidden');
-        }
-    });
+        // File upload preview
+        document.getElementById('resume-upload').addEventListener('change', function (e) {
+            const fileName = e.target.files[0]?.name;
+            const fileNameDiv = document.getElementById('file-name');
+            if (fileName) {
+                fileNameDiv.textContent = `Selected: ${fileName}`;
+                fileNameDiv.classList.remove('hidden');
+            } else {
+                fileNameDiv.classList.add('hidden');
+            }
+        });
 
-    // HTMX loading states
-    document.body.addEventListener('htmx:beforeRequest', function (evt) {
-        const button = evt.detail.elt;
-        if (button.tagName === "BUTTON" && button.textContent.includes('Fetch')) {
-            fetchButton = button;
-            button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Loading...';
-        }
-    });
+        // HTMX loading states
+        document.body.addEventListener('htmx:beforeRequest', function (evt) {
+            const button = evt.detail.elt;
+            if (button.tagName === "BUTTON" && button.textContent.includes('Fetch')) {
+                fetchButton = button;
+                button.disabled = true;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Loading...';
+            }
+        });
 
-    document.body.addEventListener('htmx:afterSettle', function (evt) {
-        if (fetchButton) {
-            fetchButton.disabled = false;
-            fetchButton.innerHTML = '<i class="fas fa-search mr-2"></i>Fetch';
-            fetchButton = null;
-        }
-    });
-</script>
+        document.body.addEventListener('htmx:afterSettle', function (evt) {
+            if (fetchButton) {
+                fetchButton.disabled = false;
+                fetchButton.innerHTML = '<i class="fas fa-search mr-2"></i>Fetch';
+                fetchButton = null;
+            }
+        });
+    </script>
 
 </body>
 
 </html>
+
+================
+File: ai.go
+================
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"strings"
+
+	"google.golang.org/genai"
+)
+
+// PersonalizeResume takes a CV and job description and returns a personalized resume
+func PersonalizeResume(ctx context.Context, cv, jobDescription string, projectSummaries []string) (string, error) {
+
+	promptTemplate, err := os.ReadFile("prompt.md")
+	if err != nil {
+		return "", fmt.Errorf("failed to read prompt template: %v", err)
+	}
+
+	prompt := fmt.Sprintf(string(promptTemplate), cv, jobDescription, strings.Join(projectSummaries, "\n"))
+
+	fullContent, err := GenerateFromAI(ctx, prompt)
+
+	if err != nil {
+		return "", fmt.Errorf("failed to generate personalized resume: %v", err)
+	}
+
+	return fullContent, nil
+
+}
+
+func summarizeRepoUsingAI(ctx context.Context, content string) (string, error) {
+	promptTemplate, err := os.ReadFile("repo-prompt.md")
+	if err != nil {
+		return "", fmt.Errorf("failed to read prompt template: %v", err)
+	}
+
+	prompt := fmt.Sprintf(string(promptTemplate), content)
+
+	fullContent, err := GenerateFromAI(ctx, prompt)
+	if err != nil {
+		return "", fmt.Errorf("failed to summarize content: %v", err)
+	}
+
+	return fullContent, nil
+}
+
+func GenerateFromAI(ctx context.Context, prompt string) (string, error) {
+    client, err := createGeminiClient(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to create Gemini client")
+	} 
+
+	thinkingBudget := int32(0)
+
+	config := &genai.GenerateContentConfig{
+		ThinkingConfig: &genai.ThinkingConfig{
+			ThinkingBudget: &thinkingBudget,
+		},
+	}
+
+	result, err := client.Models.GenerateContent(
+		ctx,
+		"gemini-2.5-flash",
+		genai.Text(prompt),
+		config,
+	)
+
+	if err != nil {
+		return "", fmt.Errorf("failed to generate content: %v", err)
+	}
+
+	// Extract content using the proper field access
+	var fullContent strings.Builder
+
+	if len(result.Candidates) > 0 {
+		for _, part := range result.Candidates[0].Content.Parts {
+			// Try direct field access first
+			if part.Text != "" {
+				fullContent.WriteString(part.Text)
+			} else {
+				// Fallback to string conversion
+				fullContent.WriteString(fmt.Sprintf("%v", part))
+			}
+		}
+	}
+
+	return fullContent.String(), nil
+
+}
+
+func createGeminiClient(ctx context.Context) (*genai.Client, error) {
+	// Get API key from environment
+	apiKey := os.Getenv("GEMINI_API_KEY")
+	if apiKey == "" {
+		return nil, fmt.Errorf("GEMINI_API_KEY environment variable is required")
+	}
+
+	// Create client
+	client, err := genai.NewClient(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create client: %v", err)
+	}
+
+	log.Println("Created Gemini client successfully\n")
+
+	return client, nil
+}
 
 ================
 File: handlers.go
@@ -1120,7 +1127,7 @@ func handleLinkedInVerify(w http.ResponseWriter, r *http.Request) {
 
 func handleProcess(w http.ResponseWriter, r *http.Request) {
 
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 200*time.Second)
 	defer cancel()
 	r = r.WithContext(ctx)
 
@@ -1190,7 +1197,7 @@ func handleRepos(w http.ResponseWriter, r *http.Request) {
     }
 
     apiURL := fmt.Sprintf("https://api.github.com/users/%s/repos", username)
-    ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+    ctx, cancel := context.WithTimeout(r.Context(), 200*time.Second)
     defer cancel()
     req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
     if err != nil {
@@ -1284,160 +1291,6 @@ func convertPDFToText(file io.Reader) (string, error) {
 	}
 
 	return string(cvBytes), nil
-}
-
-================
-File: ai.go
-================
-package main
-
-import (
-	"context"
-	"fmt"
-	"log"
-	"os"
-	"strings"
-
-	"google.golang.org/genai"
-)
-
-// PersonalizeResume takes a CV and job description and returns a personalized resume
-func PersonalizeResume(ctx context.Context, cv, jobDescription string, projectSummaries []string) (string, error) {
-	// Get API key from environment
-	apiKey := os.Getenv("GEMINI_API_KEY")
-	if apiKey == "" {
-		return "", fmt.Errorf("GEMINI_API_KEY environment variable is required")
-	}
-
-	// Create client
-	client, err := genai.NewClient(ctx, nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to create client: %v", err)
-	}
-
-	promptTemplate, err := os.ReadFile("prompt.md")
-	if err != nil {
-		return "", fmt.Errorf("failed to read prompt template: %v", err)
-	}
-
-	prompt := fmt.Sprintf(string(promptTemplate), cv, jobDescription, strings.Join(projectSummaries, "\n"))
-
-	fmt.Print("Prompt:\n", prompt, "\n\n")
-
-	thinkingBudget := int32(0)
-
-	config := &genai.GenerateContentConfig{
-		ThinkingConfig: &genai.ThinkingConfig{
-			ThinkingBudget: &thinkingBudget,
-		},
-	}
-
-	result, err := client.Models.GenerateContent(
-		ctx,
-		"gemini-2.5-flash",
-		genai.Text(prompt),
-		config,
-	)
-
-	if err != nil {
-		return "", fmt.Errorf("failed to generate content: %v", err)
-	}
-
-	// Extract content using the proper field access
-	var fullContent strings.Builder
-
-	if len(result.Candidates) > 0 {
-		for _, part := range result.Candidates[0].Content.Parts {
-			// Try direct field access first
-			if part.Text != "" {
-				fullContent.WriteString(part.Text)
-			} else {
-				// Fallback to string conversion
-				fullContent.WriteString(fmt.Sprintf("%v", part))
-			}
-		}
-	}
-
-	return fullContent.String(), nil
-
-}
-
-func summarizeRepoUsingAI(ctx context.Context, content string) (string, error) {
-	promptTemplate, err := os.ReadFile("repo-prompt.md")
-	if err != nil {
-		return "", fmt.Errorf("failed to read prompt template: %v", err)
-	}
-
-	prompt := fmt.Sprintf(string(promptTemplate), content)
-
-	fullContent, err := GenerateFromAI(ctx, prompt)
-	if err != nil {
-		return "", fmt.Errorf("failed to summarize content: %v", err)
-	}
-
-	return fullContent, nil
-}
-
-func GenerateFromAI(ctx context.Context, prompt string) (string, error) {
-    client, err := createGeminiClient(ctx)
-	if err == nil {
-		return "", fmt.Errorf("failed to create Gemini client")
-	} 
-
-	thinkingBudget := int32(0)
-
-	config := &genai.GenerateContentConfig{
-		ThinkingConfig: &genai.ThinkingConfig{
-			ThinkingBudget: &thinkingBudget,
-		},
-	}
-
-	result, err := client.Models.GenerateContent(
-		ctx,
-		"gemini-2.5-flash",
-		genai.Text(prompt),
-		config,
-	)
-
-	if err != nil {
-		return "", fmt.Errorf("failed to generate content: %v", err)
-	}
-
-	// Extract content using the proper field access
-	var fullContent strings.Builder
-
-	if len(result.Candidates) > 0 {
-		for _, part := range result.Candidates[0].Content.Parts {
-			// Try direct field access first
-			if part.Text != "" {
-				fullContent.WriteString(part.Text)
-			} else {
-				// Fallback to string conversion
-				fullContent.WriteString(fmt.Sprintf("%v", part))
-			}
-		}
-	}
-
-	return fullContent.String(), nil
-
-}
-
-func createGeminiClient(ctx context.Context) (*genai.Client, error) {
-	// Get API key from environment
-	apiKey := os.Getenv("GEMINI_API_KEY")
-	if apiKey == "" {
-		return nil, fmt.Errorf("GEMINI_API_KEY environment variable is required")
-	}
-
-	// Create client
-	client, err := genai.NewClient(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create client: %v", err)
-	}
-
-	log.Println("Created Gemini client successfully\n")
-
-	return client, nil
 }
 
 ================
